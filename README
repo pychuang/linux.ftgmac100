@@ -33,5 +33,6 @@ platform_device_register(&ftgmac100_device);
 CONFIG_NETDEVICES=y
 CONFIG_NET_ETHERNET=y
 CONFIG_HAS_DMA=y
-CONFIG_MII=y
+CONFIG_PHYLIB=y
 
+and maybe choose a PHY
