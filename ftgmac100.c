@@ -790,9 +790,13 @@ static int ftgmac100_mii_probe(struct ftgmac100_priv *priv)
 	return 0;
 }
 
-static int ftgmac100_mdio_read(struct ftgmac100_priv *priv, int phy_id, int reg)
+/******************************************************************************
+ * struct mii_bus functions
+ *****************************************************************************/
+static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = bus->priv;
+	struct ftgmac100_priv *priv = netdev_priv(dev);
 	int phycr;
 	int i;
 
@@ -801,8 +805,8 @@ static int ftgmac100_mdio_read(struct ftgmac100_priv *priv, int phy_id, int reg)
 	/* preserve MDC cycle threshold */
 	phycr &= FTGMAC100_PHYCR_MDC_CYCTHR_MASK;
 
-	phycr |= FTGMAC100_PHYCR_PHYAD(phy_id)
-	      |  FTGMAC100_PHYCR_REGAD(reg)
+	phycr |= FTGMAC100_PHYCR_PHYAD(phy_addr)
+	      |  FTGMAC100_PHYCR_REGAD(regnum)
 	      |  FTGMAC100_PHYCR_MIIRD;
 
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -824,11 +828,13 @@ static int ftgmac100_mdio_read(struct ftgmac100_priv *priv, int phy_id, int reg)
 	return -EIO;
 }
 
-static int ftgmac100_mdio_write(struct ftgmac100_priv *priv, int phy_id,
-		int reg, int data)
+static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
+	int regnum, u16 value)
 {
-	struct net_device *dev = priv->dev;
+	struct net_device *dev = bus->priv;
+	struct ftgmac100_priv *priv = netdev_priv(dev);
 	int phycr;
+	int data;
 	int i;
 
 	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -836,11 +842,11 @@ static int ftgmac100_mdio_write(struct ftgmac100_priv *priv, int phy_id,
 	/* preserve MDC cycle threshold */
 	phycr &= FTGMAC100_PHYCR_MDC_CYCTHR_MASK;
 
-	phycr |= FTGMAC100_PHYCR_PHYAD(phy_id)
-	      |  FTGMAC100_PHYCR_REGAD(reg)
+	phycr |= FTGMAC100_PHYCR_PHYAD(phy_addr)
+	      |  FTGMAC100_PHYCR_REGAD(regnum)
 	      |  FTGMAC100_PHYCR_MIIWR;
 
-	data = FTGMAC100_PHYDATA_MIIWDATA(data);
+	data = FTGMAC100_PHYDATA_MIIWDATA(value);
 
 	iowrite32(data, priv->base + FTGMAC100_OFFSET_PHYDATA);
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -856,26 +862,6 @@ static int ftgmac100_mdio_write(struct ftgmac100_priv *priv, int phy_id,
 
 	dev_err(&dev->dev, "mdio write timed out\n");
 	return -EIO;
-}
-
-/******************************************************************************
- * struct mii_bus functions
- *****************************************************************************/
-static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
-{
-	struct net_device *dev = bus->priv;
-	struct ftgmac100_priv *priv = netdev_priv(dev);
-
-	return ftgmac100_mdio_read(priv, phy_addr, regnum);
-}
-
-static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
-	int regnum, u16 value)
-{
-	struct net_device *dev = bus->priv;
-	struct ftgmac100_priv *priv = netdev_priv(dev);
-
-	return ftgmac100_mdio_write(priv, phy_addr, regnum, value);
 }
 
 static int ftgmac100_mdiobus_reset(struct mii_bus *bus)
