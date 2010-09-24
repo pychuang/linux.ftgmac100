@@ -490,7 +490,7 @@ static int ftgmac100_rx_packet(struct ftgmac100_priv *priv, int *processed)
 	priv->stats.rx_packets++;
 	priv->stats.rx_bytes += skb->len;
 
-	processed++;
+	(*processed)++;
 
 	return 1;
 }
@@ -1033,7 +1033,6 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 static int ftgmac100_poll(struct napi_struct *napi, int budget)
 {
 	struct ftgmac100_priv *priv = container_of(napi, struct ftgmac100_priv, napi);
-	unsigned long flags;
 	int retry;
 	int rx = 0;
 
@@ -1041,12 +1040,16 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		retry = ftgmac100_rx_packet(priv, &rx);
 	} while (retry && rx < budget);
 
-	netif_rx_complete(priv->dev, napi);
+	if (!retry || rx < budget) {
+		unsigned long flags;
 
-	/* enable all interrupts */
-	spin_lock_irqsave(&priv->hw_lock, flags);
-	iowrite32(INT_MASK_ALL_ENABLED, priv->base + FTGMAC100_OFFSET_IER);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
+		netif_rx_complete(priv->dev, napi);
+
+		/* enable all interrupts */
+		spin_lock_irqsave(&priv->hw_lock, flags);
+		iowrite32(INT_MASK_ALL_ENABLED, priv->base + FTGMAC100_OFFSET_IER);
+		spin_unlock_irqrestore(&priv->hw_lock, flags);
+	}
 
 	return rx;
 }
