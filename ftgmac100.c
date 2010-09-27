@@ -801,11 +801,10 @@ static int ftgmac100_mii_probe(struct ftgmac100_priv *priv)
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		struct phy_device *tmp = priv->mii_bus->phy_map[i];
 
-		if (!tmp)
-			continue; /* no PHY here... */
-
-		phydev = tmp;
-		break; /* found it */
+		if (tmp) {
+			phydev = tmp;
+			break;
+		}
 	}
 
 	/* now we are supposed to have a proper phydev, to attach to... */
