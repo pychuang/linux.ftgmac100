@@ -972,7 +972,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		iowrite32(INT_MASK_RX_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
 		spin_unlock_irqrestore(&priv->hw_lock, flags);
 
-		netif_rx_schedule(dev, &priv->napi);
+		netif_rx_schedule(&priv->napi);
 #else
 		int rx = 0;
 
@@ -1042,7 +1042,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	if (!retry || rx < budget) {
 		unsigned long flags;
 
-		netif_rx_complete(priv->dev, napi);
+		netif_rx_complete(napi);
 
 		/* enable all interrupts */
 		spin_lock_irqsave(&priv->hw_lock, flags);
