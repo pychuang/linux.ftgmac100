@@ -1,6 +1,6 @@
 This package includes:
 
-* FTGMAC100 driver which supports kernel version >= 2.6.28
+* FTGMAC100 driver which supports kernel version >= 2.6.32
 
 Usage:
 
@@ -8,12 +8,11 @@ Usage:
 ------------------------>8-------------------------->8------------------------
 static struct resource ftgmac100_resources[] = {
 	{
-		.start	= MAC_FTGMAC100_0_PA_BASE,
-		.end	= MAC_FTGMAC100_0_PA_BASE + MAC_FTGMAC100_0_PA_SIZE,
+		.start	= A369_FTGMAC100_0_PA_BASE,
+		.end	= A369_FTGMAC100_0_PA_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= MAC_FTGMAC100_0_IRQ,
-		.end	= MAC_FTGMAC100_0_IRQ,
+		.start	= IRQ_A369_FTGMAC100_0_IRQ,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -21,6 +20,9 @@ static struct resource ftgmac100_resources[] = {
 static struct platform_device ftgmac100_device = {
 	.name		= "ftgmac100",
 	.id		= 0,
+	.dev		= {
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 	.num_resources	= ARRAY_SIZE(ftgmac100_resources),
 	.resource	= ftgmac100_resources,
 };
