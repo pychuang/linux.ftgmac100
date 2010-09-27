@@ -810,7 +810,7 @@ static int ftgmac100_mii_probe(struct ftgmac100_priv *priv)
 
 	/* now we are supposed to have a proper phydev, to attach to... */
 	if (!phydev) {
-		dev_info(&dev->dev, "%s: Don't found any phy device at all\n",
+		dev_info(&dev->dev, "%s: no PHY found\n",
 			dev->name);
 		return -ENODEV;
 	}
