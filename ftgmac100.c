@@ -1055,7 +1055,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 #endif
 
 /******************************************************************************
- * struct net_device functions
+ * struct net_device_ops functions
  *****************************************************************************/
 static int ftgmac100_open(struct net_device *dev)
 {
@@ -1178,6 +1178,14 @@ static int ftgmac100_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 	return phy_mii_ioctl(priv->phydev, data, cmd);
 }
 
+static struct net_device_ops ftgmac100_netdev_ops = {
+	.ndo_open		= ftgmac100_open,
+	.ndo_stop		= ftgmac100_stop,
+	.ndo_start_xmit		= ftgmac100_hard_start_xmit,
+	.ndo_get_stats		= ftgmac100_get_stats,
+	.ndo_do_ioctl		= ftgmac100_do_ioctl,
+};
+
 /******************************************************************************
  * struct platform_driver functions
  *****************************************************************************/
@@ -1211,12 +1219,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	dev->open		= ftgmac100_open;
-	dev->stop		= ftgmac100_stop;
-	dev->hard_start_xmit	= ftgmac100_hard_start_xmit;
-	dev->get_stats		= ftgmac100_get_stats;
-	dev->do_ioctl		= ftgmac100_do_ioctl;
-
+	dev->netdev_ops		= &ftgmac100_netdev_ops;
 	dev->ethtool_ops	= &ftgmac100_ethtool_ops;
 
 	platform_set_drvdata(pdev, dev);
