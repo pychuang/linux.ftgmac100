@@ -814,7 +814,7 @@ static int ftgmac100_mii_probe(struct ftgmac100_priv *priv)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, phydev->dev.bus_id, &ftgmac100_adjust_link, 0,
+	phydev = phy_connect(dev, dev_name(&phydev->dev), &ftgmac100_adjust_link, 0,
 			PHY_INTERFACE_MODE_GMII);
 
 	if (IS_ERR(phydev)) {
@@ -919,7 +919,7 @@ static void ftgmac100_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo
 {
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, dev->dev.bus_id);
+	strcpy(info->bus_info, dev_name(&dev->dev));
 }
 
 static int ftgmac100_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -972,7 +972,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		iowrite32(INT_MASK_RX_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
 		spin_unlock_irqrestore(&priv->hw_lock, flags);
 
-		netif_rx_schedule(&priv->napi);
+		napi_schedule(&priv->napi);
 #else
 		int rx = 0;
 
@@ -1042,7 +1042,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	if (!retry || rx < budget) {
 		unsigned long flags;
 
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		/* enable all interrupts */
 		spin_lock_irqsave(&priv->hw_lock, flags);
