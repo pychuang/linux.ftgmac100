@@ -1219,8 +1219,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	dev->netdev_ops		= &ftgmac100_netdev_ops;
-	dev->ethtool_ops	= &ftgmac100_ethtool_ops;
+	SET_ETHTOOL_OPS(dev, &ftgmac100_ethtool_ops);
+	dev->netdev_ops	= &ftgmac100_netdev_ops;
 
 	platform_set_drvdata(pdev, dev);
 
