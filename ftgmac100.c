@@ -640,7 +640,7 @@ static int ftgmac100_xmit(struct sk_buff *skb, struct ftgmac100_priv *priv)
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	ftgmac100_txdes_set_skb(txdes, skb);
-	ftgmac100_txdes_set_dma_addr(txdes, skb_shinfo(skb)->dma_maps[0]);
+	ftgmac100_txdes_set_dma_addr(txdes, skb_shinfo(skb)->dma_head);
 
 	ftgmac100_txdes_set_first_segment(txdes);
 	ftgmac100_txdes_set_last_segment(txdes);
