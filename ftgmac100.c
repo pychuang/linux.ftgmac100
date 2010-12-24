@@ -99,7 +99,7 @@ struct ftgmac100_priv
 				 FTGMAC100_INT_RPKT_BUF		|	\
 				 FTGMAC100_INT_NO_RXBUF)
 
-#define	INT_MASK_ALL_DISABLED	0
+#define INT_MASK_ALL_DISABLED	0
 
 static inline void ftgmac100_set_rx_ring_base(struct ftgmac100_priv *priv, 
 		dma_addr_t addr)
@@ -1011,7 +1011,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	if (status & (FTGMAC100_INT_XPKT_ETH | FTGMAC100_INT_XPKT_LOST)) {
 		/*
 		 * FTGMAC100_INT_XPKT_ETH:
-		 * 	 packet transmitted to ethernet successfully
+		 * 	packet transmitted to ethernet successfully
 		 *
 		 * FTGMAC100_INT_XPKT_LOST:
 		 *	packet transmitted to ethernet lost due to late
@@ -1246,7 +1246,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	SET_ETHTOOL_OPS(netdev, &ftgmac100_ethtool_ops);
-	netdev->netdev_ops	= &ftgmac100_netdev_ops;
+	netdev->netdev_ops = &ftgmac100_netdev_ops;
 
 	platform_set_drvdata(pdev, netdev);
 
