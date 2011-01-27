@@ -1,7 +1,7 @@
 /*
- * Faraday FTGMAC100 Ethernet
+ * Faraday FTGMAC100 Gigabit Ethernet
  *
- * (C) Copyright 2009 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  *
  * This program is free software; you can redistribute it and/or modify
