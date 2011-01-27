@@ -66,7 +66,6 @@ struct ftgmac100 {
 	unsigned int tx_pending;
 
 	spinlock_t hw_lock;
-	spinlock_t rx_lock;
 	spinlock_t tx_lock;
 
 	struct net_device *netdev;
@@ -417,23 +416,18 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 {
 	struct net_device *netdev = priv->netdev;
 	struct device *dev = &netdev->dev;
-	unsigned long flags;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
 	int length;
 	int copied = 0;
 	int done = 0;
 
-	spin_lock_irqsave(&priv->rx_lock, flags);
 	rxdes = ftgmac100_rx_locate_first_segment(priv);
-	spin_unlock_irqrestore(&priv->rx_lock, flags);
 	if (!rxdes)
 		return 0;
 
 	if (unlikely(ftgmac100_rx_packet_error(priv, rxdes))) {
-		spin_lock_irqsave(&priv->rx_lock, flags);
 		ftgmac100_rx_drop_packet(priv);
-		spin_unlock_irqrestore(&priv->rx_lock, flags);
 		return 1;
 	}
 
@@ -445,9 +439,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		if (printk_ratelimit())
 			dev_err(dev, "rx skb alloc failed\n");
 
-		spin_lock_irqsave(&priv->rx_lock, flags);
 		ftgmac100_rx_drop_packet(priv);
-		spin_unlock_irqrestore(&priv->rx_lock, flags);
 		return 1;
 	}
 
@@ -475,14 +467,10 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		dma_sync_single_for_device(priv->dev, map, RX_BUF_SIZE,
 			DMA_FROM_DEVICE);
 
-		spin_lock_irqsave(&priv->rx_lock, flags);
-
 		ftgmac100_rxdes_set_dma_own(rxdes);
 
 		ftgmac100_rx_pointer_advance(priv);
 		rxdes = ftgmac100_current_rxdes(priv);
-
-		spin_unlock_irqrestore(&priv->rx_lock, flags);
 	} while (!done && copied < length);
 
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1264,7 +1252,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 
 	spin_lock_init(&priv->hw_lock);
-	spin_lock_init(&priv->rx_lock);
 	spin_lock_init(&priv->tx_lock);
 
 	/* initialize NAPI */
