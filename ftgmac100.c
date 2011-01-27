@@ -65,7 +65,6 @@ struct ftgmac100 {
 	unsigned int tx_pointer;
 	unsigned int tx_pending;
 
-	spinlock_t hw_lock;
 	spinlock_t tx_lock;
 
 	struct net_device *netdev;
@@ -121,15 +120,10 @@ static inline void ftgmac100_txdma_normal_prio_start_polling(
 static int ftgmac100_reset_hw(struct ftgmac100 *priv)
 {
 	struct device *dev = &priv->netdev->dev;
-	unsigned long flags;
 	int i;
 
 	/* NOTE: reset clears all registers */
-
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	iowrite32(FTGMAC100_MACCR_SW_RST, priv->base + FTGMAC100_OFFSET_MACCR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
-
 	for (i = 0; i < 5; i++) {
 		int maccr;
 
@@ -155,11 +149,7 @@ static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
 
 static void ftgmac100_init_hw(struct ftgmac100 *priv)
 {
-	unsigned long flags;
-
 	/* setup ring buffer base registers */
-
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	ftgmac100_set_rx_ring_base(priv,
 		priv->descs_dma_addr + offsetof(struct ftgmac100_descs, rxdes));
 	ftgmac100_set_normal_prio_tx_ring_base(priv,
@@ -171,12 +161,10 @@ static void ftgmac100_init_hw(struct ftgmac100 *priv)
 		priv->base + FTGMAC100_OFFSET_APTC);
 
 	ftgmac100_set_mac(priv, priv->netdev->dev_addr);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 }
 
 static void ftgmac100_start_hw(struct ftgmac100 *priv, int speed)
 {
-	unsigned long flags;
 	int maccr = FTGMAC100_MACCR_TXDMA_EN
 		  | FTGMAC100_MACCR_RXDMA_EN
 		  | FTGMAC100_MACCR_TXMAC_EN
@@ -200,18 +188,12 @@ static void ftgmac100_start_hw(struct ftgmac100 *priv, int speed)
 		break;
 	}
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	iowrite32(maccr, priv->base + FTGMAC100_OFFSET_MACCR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 }
 
 static void ftgmac100_stop_hw(struct ftgmac100 *priv)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_MACCR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 }
 
 /******************************************************************************
@@ -675,9 +657,7 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	ftgmac100_txdes_set_dma_own(txdes);
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	ftgmac100_txdma_normal_prio_start_polling(priv);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	return NETDEV_TX_OK;
 }
@@ -784,7 +764,6 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct phy_device *phydev = priv->phydev;
-	unsigned long flags;
 	int ier;
 
 	if (phydev->speed == priv->old_speed)
@@ -792,12 +771,10 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 
 	priv->old_speed = phydev->speed;
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	ier = ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* disable all interrupts */
 	iowrite32(INT_MASK_ALL_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	netif_stop_queue(netdev);
 	ftgmac100_stop_hw(priv);
@@ -807,9 +784,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	ftgmac100_start_hw(priv, phydev->speed);
 
 	/* re-enable interrupts */
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	iowrite32(ier, priv->base + FTGMAC100_OFFSET_IER);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 }
 
 static int ftgmac100_mii_probe(struct ftgmac100 *priv)
@@ -857,11 +832,9 @@ static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 	struct net_device *netdev = bus->priv;
 	struct device *dev = &netdev->dev;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned long flags;
 	int phycr;
 	int i;
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
 
 	/* preserve MDC cycle threshold */
@@ -872,7 +845,6 @@ static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 	      |  FTGMAC100_PHYCR_MIIRD;
 
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	for (i = 0; i < 10; i++) {
 		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -897,12 +869,10 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	struct net_device *netdev = bus->priv;
 	struct device *dev = &netdev->dev;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned long flags;
 	int phycr;
 	int data;
 	int i;
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
 
 	/* preserve MDC cycle threshold */
@@ -916,7 +886,6 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 
 	iowrite32(data, priv->base + FTGMAC100_OFFSET_PHYDATA);
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	for (i = 0; i < 10; i++) {
 		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -978,13 +947,10 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	struct net_device *netdev = dev_id;
 	struct device *dev = &netdev->dev;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned long flags;
 	unsigned int status;
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	if (status & (FTGMAC100_INT_RPKT_BUF | FTGMAC100_INT_NO_RXBUF)) {
 		/*
@@ -996,10 +962,8 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		 */
 
 		/* Disable interrupts for polling */
-		spin_lock_irqsave(&priv->hw_lock, flags);
 		iowrite32(INT_MASK_RX_DISABLED,
 			priv->base + FTGMAC100_OFFSET_IER);
-		spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 		napi_schedule(&priv->napi);
 	}
@@ -1063,15 +1027,11 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	} while (retry && rx < budget);
 
 	if (!retry || rx < budget) {
-		unsigned long flags;
-
 		napi_complete(napi);
 
 		/* enable all interrupts */
-		spin_lock_irqsave(&priv->hw_lock, flags);
 		iowrite32(INT_MASK_ALL_ENABLED,
 			priv->base + FTGMAC100_OFFSET_IER);
-		spin_unlock_irqrestore(&priv->hw_lock, flags);
 	}
 
 	return rx;
@@ -1084,7 +1044,6 @@ static int ftgmac100_open(struct net_device *netdev)
 {
 	struct device *dev = &netdev->dev;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned long flags;
 	int err;
 
 	err = ftgmac100_alloc_buffers(priv);
@@ -1118,10 +1077,7 @@ static int ftgmac100_open(struct net_device *netdev)
 	netif_start_queue(netdev);
 
 	/* enable all interrupts */
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	iowrite32(INT_MASK_ALL_ENABLED, priv->base + FTGMAC100_OFFSET_IER);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
-
 	return 0;
 
 err_hw:
@@ -1135,12 +1091,9 @@ err_alloc:
 static int ftgmac100_stop(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->hw_lock, flags);
 	/* disable all interrupts */
 	iowrite32(INT_MASK_ALL_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
-	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
@@ -1251,7 +1204,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->netdev = netdev;
 	priv->dev = &pdev->dev;
 
-	spin_lock_init(&priv->hw_lock);
 	spin_lock_init(&priv->tx_lock);
 
 	/* initialize NAPI */
