@@ -924,7 +924,7 @@ static int ftgmac100_set_settings(struct net_device *netdev,
 	return phy_ethtool_sset(priv->phydev, cmd);
 }
 
-static struct ethtool_ops ftgmac100_ethtool_ops = {
+static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.set_settings		= ftgmac100_set_settings,
 	.get_settings		= ftgmac100_get_settings,
 	.get_drvinfo		= ftgmac100_get_drvinfo,
@@ -1136,7 +1136,7 @@ static int ftgmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	return phy_mii_ioctl(priv->phydev, data, cmd);
 }
 
-static struct net_device_ops ftgmac100_netdev_ops = {
+static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
 	.ndo_start_xmit		= ftgmac100_hard_start_xmit,
