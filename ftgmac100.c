@@ -35,8 +35,6 @@
 
 #include "ftgmac100.h"
 
-#define USE_NAPI
-
 #define DRV_NAME	"ftgmac100"
 #define DRV_VERSION	"0.2"
 
@@ -73,9 +71,7 @@ struct ftgmac100 {
 
 	struct net_device *netdev;
 	struct device *dev;
-#ifdef USE_NAPI
 	struct napi_struct napi;
-#endif
 
 	struct net_device_stats stats;
 	struct mii_bus *mii_bus;
@@ -491,11 +487,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	/* push packet to protocol stack */
 
-#ifdef USE_NAPI
 	netif_receive_skb(skb);
-#else
-	netif_rx(skb);
-#endif
 
 	priv->netdev->last_rx = jiffies;
 
@@ -1014,7 +1006,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		 * FTGMAC100_INT_NO_RXBUF:
 		 *	RX buffer unavailable
 		 */
-#ifdef USE_NAPI
+
 		/* Disable interrupts for polling */
 		spin_lock_irqsave(&priv->hw_lock, flags);
 		iowrite32(INT_MASK_RX_DISABLED,
@@ -1022,12 +1014,6 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 		napi_schedule(&priv->napi);
-#else
-		int rx = 0;
-
-		while (ftgmac100_rx_packet(priv, &rx))
-			;
-#endif
 	}
 
 	if (status & FTGMAC100_INT_NO_RXBUF) {
@@ -1078,7 +1064,6 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 /******************************************************************************
  * struct napi_struct functions
  *****************************************************************************/
-#ifdef USE_NAPI
 static int ftgmac100_poll(struct napi_struct *napi, int budget)
 {
 	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
@@ -1103,7 +1088,6 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 
 	return rx;
 }
-#endif
 
 /******************************************************************************
  * struct net_device_ops functions
@@ -1146,9 +1130,7 @@ static int ftgmac100_open(struct net_device *netdev)
 
 	phy_start(priv->phydev);
 
-#ifdef USE_NAPI
 	napi_enable(&priv->napi);
-#endif
 	netif_start_queue(netdev);
 
 	/* enable all interrupts */
@@ -1177,9 +1159,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 	spin_unlock_irqrestore(&priv->hw_lock, flags);
 
 	netif_stop_queue(netdev);
-#ifdef USE_NAPI
 	napi_disable(&priv->napi);
-#endif
 	phy_stop(priv->phydev);
 
 	ftgmac100_stop_hw(priv);
@@ -1285,15 +1265,12 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, netdev);
 
 	/* setup private data */
-
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 	priv->dev = &pdev->dev;
 
-#ifdef USE_NAPI
 	/* initialize NAPI */
 	netif_napi_add(netdev, &priv->napi, ftgmac100_poll, 64);
-#endif
 
 	/* map io memory */
 	priv->res = request_mem_region(res->start, res->end - res->start,
@@ -1314,7 +1291,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->irq = irq;
 
 	/* initialize mdio bus */
-
 	priv->mii_bus = mdiobus_alloc();
 	if (!priv->mii_bus) {
 		err = -EIO;
@@ -1346,7 +1322,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	}
 
 	/* register network device */
-
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev\n");
