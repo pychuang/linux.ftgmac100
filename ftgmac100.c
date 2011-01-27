@@ -73,7 +73,6 @@ struct ftgmac100 {
 	struct device *dev;
 	struct napi_struct napi;
 
-	struct net_device_stats stats;
 	struct mii_bus *mii_bus;
 	int phy_irq[PHY_MAX_ADDR];
 	struct phy_device *phydev;
@@ -345,14 +344,15 @@ static struct ftgmac100_rxdes *ftgmac100_rx_locate_first_segment(
 static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		struct ftgmac100_rxdes *rxdes)
 {
-	struct device *dev = &priv->netdev->dev;
+	struct net_device *netdev = priv->netdev;
+	struct device *dev = &netdev->dev;
 	int error = 0;
 
 	if (unlikely(ftgmac100_rxdes_rx_error(rxdes))) {
 		if (printk_ratelimit())
 			dev_info(dev, "rx err\n");
 
-		priv->stats.rx_errors++;
+		netdev->stats.rx_errors++;
 		error = 1;
 	}
 
@@ -360,7 +360,7 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		if (printk_ratelimit())
 			dev_info(dev, "rx crc err\n");
 
-		priv->stats.rx_crc_errors++;
+		netdev->stats.rx_crc_errors++;
 		error = 1;
 	}
 
@@ -368,7 +368,7 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		if (printk_ratelimit())
 			dev_info(dev, "rx frame too long\n");
 
-		priv->stats.rx_length_errors++;
+		netdev->stats.rx_length_errors++;
 		error = 1;
 	}
 
@@ -376,7 +376,7 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		if (printk_ratelimit())
 			dev_info(dev, "rx runt\n");
 
-		priv->stats.rx_length_errors++;
+		netdev->stats.rx_length_errors++;
 		error = 1;
 	}
 
@@ -384,7 +384,7 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		if (printk_ratelimit())
 			dev_info(dev, "rx odd nibble\n");
 
-		priv->stats.rx_length_errors++;
+		netdev->stats.rx_length_errors++;
 		error = 1;
 	}
 
@@ -393,7 +393,8 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 
 static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
 {
-	struct device *dev = &priv->netdev->dev;
+	struct net_device *netdev = priv->netdev;
+	struct device *dev = &netdev->dev;
 	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
 	int done = 0;
 
@@ -409,12 +410,13 @@ static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
 		rxdes = ftgmac100_current_rxdes(priv);
 	} while (!done && ftgmac100_rxdes_packet_ready(rxdes));
 
-	priv->stats.rx_dropped++;
+	netdev->stats.rx_dropped++;
 }
 
 static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 {
-	struct device *dev = &priv->netdev->dev;
+	struct net_device *netdev = priv->netdev;
+	struct device *dev = &netdev->dev;
 	unsigned long flags;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
@@ -450,7 +452,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	}
 
 	if (unlikely(ftgmac100_rxdes_multicast(rxdes)))
-		priv->stats.multicast++;
+		netdev->stats.multicast++;
 
 	skb_reserve(skb, NET_IP_ALIGN);
 
@@ -483,7 +485,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		spin_unlock_irqrestore(&priv->rx_lock, flags);
 	} while (!done && copied < length);
 
-	skb->protocol = eth_type_trans(skb, priv->netdev);
+	skb->protocol = eth_type_trans(skb, netdev);
 
 	/* push packet to protocol stack */
 
@@ -491,8 +493,8 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	priv->netdev->last_rx = jiffies;
 
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += skb->len;
+	netdev->stats.rx_packets++;
+	netdev->stats.rx_bytes += skb->len;
 
 	(*processed)++;
 
@@ -608,6 +610,7 @@ static inline struct ftgmac100_txdes *ftgmac100_current_clean_txdes(
 
 static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 {
+	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_txdes *txdes;
 	struct sk_buff *skb;
 	dma_addr_t map;
@@ -623,8 +626,8 @@ static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	skb = ftgmac100_txdes_get_skb(txdes);
 	map = ftgmac100_txdes_get_dma_addr(txdes);
 
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
+	netdev->stats.tx_packets++;
+	netdev->stats.tx_bytes += skb->len;
 
 	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
 
@@ -635,7 +638,7 @@ static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	ftgmac100_tx_clean_pointer_advance(priv);
 
 	priv->tx_pending--;
-	netif_wake_queue(priv->netdev);
+	netif_wake_queue(netdev);
 
 	return 1;
 }
@@ -677,7 +680,7 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 		if (printk_ratelimit())
 			dev_info(dev, "tx queue full\n");
 
-		netif_stop_queue(priv->netdev);
+		netif_stop_queue(netdev);
 	}
 
 	/* start transmit */
@@ -1021,7 +1024,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		if (printk_ratelimit())
 			dev_info(dev, "INT_NO_RXBUF\n");
 
-		priv->stats.rx_over_errors++;
+		netdev->stats.rx_over_errors++;
 	}
 
 	if (status & (FTGMAC100_INT_XPKT_ETH | FTGMAC100_INT_XPKT_LOST)) {
@@ -1041,7 +1044,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		if (printk_ratelimit())
 			dev_info(dev, "INT_RPKT_LOST\n");
 
-		priv->stats.rx_fifo_errors++;
+		netdev->stats.rx_fifo_errors++;
 	}
 
 	if (status & FTGMAC100_INT_AHB_ERR) {
@@ -1180,7 +1183,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		if (printk_ratelimit())
 			dev_dbg(dev, "tx packet too big\n");
 
-		priv->stats.tx_dropped++;
+		netdev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1192,7 +1195,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		if (printk_ratelimit())
 			dev_err(dev, "map socket buffer failed\n");
 
-		priv->stats.tx_dropped++;
+		netdev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1202,9 +1205,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 static struct net_device_stats *ftgmac100_get_stats(struct net_device *netdev)
 {
-	struct ftgmac100 *priv = netdev_priv(netdev);
-
-	return &priv->stats;
+	return &netdev->stats;
 }
 
 /* optional */
