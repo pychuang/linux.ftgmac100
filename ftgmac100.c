@@ -491,8 +491,6 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	netif_receive_skb(skb);
 
-	priv->netdev->last_rx = jiffies;
-
 	netdev->stats.rx_packets++;
 	netdev->stats.rx_bytes += skb->len;
 
@@ -692,7 +690,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	spin_lock_irqsave(&priv->hw_lock, flags);
 	ftgmac100_txdma_normal_prio_start_polling(priv);
 	spin_unlock_irqrestore(&priv->hw_lock, flags);
-	priv->netdev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
