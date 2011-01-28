@@ -36,7 +36,7 @@
 #include "ftgmac100.h"
 
 #define DRV_NAME	"ftgmac100"
-#define DRV_VERSION	"0.2"
+#define DRV_VERSION	"0.3"
 
 #define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
@@ -80,17 +80,13 @@ struct ftgmac100 {
 /******************************************************************************
  * internal functions (hardware register access)
  *****************************************************************************/
-#define INT_MASK_RX_DISABLED	(FTGMAC100_INT_RPKT_LOST	|	\
-				 FTGMAC100_INT_XPKT_ETH		|	\
-				 FTGMAC100_INT_XPKT_LOST	|	\
-				 FTGMAC100_INT_AHB_ERR		|	\
-				 FTGMAC100_INT_PHYSTS_CHG)
-
-#define INT_MASK_ALL_ENABLED	(INT_MASK_RX_DISABLED		|	\
-				 FTGMAC100_INT_RPKT_BUF		|	\
+#define INT_MASK_ALL_ENABLED	(FTGMAC100_INT_RPKT_LOST	| \
+				 FTGMAC100_INT_XPKT_ETH		| \
+				 FTGMAC100_INT_XPKT_LOST	| \
+				 FTGMAC100_INT_AHB_ERR		| \
+				 FTGMAC100_INT_PHYSTS_CHG	| \
+				 FTGMAC100_INT_RPKT_BUF		| \
 				 FTGMAC100_INT_NO_RXBUF)
-
-#define INT_MASK_ALL_DISABLED	0
 
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
@@ -759,7 +755,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	ier = ioread32(priv->base + FTGMAC100_OFFSET_IER);
 
 	/* disable all interrupts */
-	iowrite32(INT_MASK_ALL_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
 	ftgmac100_stop_hw(priv);
@@ -928,7 +924,26 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 {
 	struct net_device *netdev = dev_id;
 	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	if (likely(netif_running(netdev))) {
+		/* Disable interrupts for polling */
+		iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+		napi_schedule(&priv->napi);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/******************************************************************************
+ * struct napi_struct functions
+ *****************************************************************************/
+static int ftgmac100_poll(struct napi_struct *napi, int budget)
+{
+	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
+	struct net_device *netdev = priv->netdev;
 	unsigned int status;
+	int completed = 1;
+	int rx = 0;
 
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
 	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
@@ -941,12 +956,14 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 		 * FTGMAC100_INT_NO_RXBUF:
 		 *	RX buffer unavailable
 		 */
+		int retry;
 
-		/* Disable interrupts for polling */
-		iowrite32(INT_MASK_RX_DISABLED,
-			priv->base + FTGMAC100_OFFSET_IER);
+		do {
+			retry = ftgmac100_rx_packet(priv, &rx);
+		} while (retry && rx < budget);
 
-		napi_schedule(&priv->napi);
+		if (retry && rx == budget)
+			completed = 0;
 	}
 
 	if (status & FTGMAC100_INT_NO_RXBUF) {
@@ -991,23 +1008,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 			netdev_info(netdev, "INT_PHYSTS_CHG\n");
 	}
 
-	return IRQ_HANDLED;
-}
-
-/******************************************************************************
- * struct napi_struct functions
- *****************************************************************************/
-static int ftgmac100_poll(struct napi_struct *napi, int budget)
-{
-	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
-	int retry;
-	int rx = 0;
-
-	do {
-		retry = ftgmac100_rx_packet(priv, &rx);
-	} while (retry && rx < budget);
-
-	if (!retry || rx < budget) {
+	if (completed) {
 		napi_complete(napi);
 
 		/* enable all interrupts */
@@ -1073,7 +1074,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
 	/* disable all interrupts */
-	iowrite32(INT_MASK_ALL_DISABLED, priv->base + FTGMAC100_OFFSET_IER);
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
