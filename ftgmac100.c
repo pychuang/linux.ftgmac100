@@ -92,27 +92,25 @@ struct ftgmac100 {
 
 #define INT_MASK_ALL_DISABLED	0
 
-static inline void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv,
-		dma_addr_t addr)
+static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
 	iowrite32(addr, priv->base + FTGMAC100_OFFSET_RXR_BADR);
 }
 
-static inline void ftgmac100_set_rx_buffer_size(struct ftgmac100 *priv,
+static void ftgmac100_set_rx_buffer_size(struct ftgmac100 *priv,
 		unsigned int size)
 {
 	size = FTGMAC100_RBSR_SIZE(size);
 	iowrite32(size, priv->base + FTGMAC100_OFFSET_RBSR);
 }
 
-static inline void ftgmac100_set_normal_prio_tx_ring_base(
-		struct ftgmac100 *priv, dma_addr_t addr)
+static void ftgmac100_set_normal_prio_tx_ring_base(struct ftgmac100 *priv,
+		dma_addr_t addr)
 {
 	iowrite32(addr, priv->base + FTGMAC100_OFFSET_NPTXR_BADR);
 }
 
-static inline void ftgmac100_txdma_normal_prio_start_polling(
-		struct ftgmac100 *priv)
+static void ftgmac100_txdma_normal_prio_start_polling(struct ftgmac100 *priv)
 {
 	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
 }
@@ -199,89 +197,85 @@ static void ftgmac100_stop_hw(struct ftgmac100 *priv)
 /******************************************************************************
  * internal functions (receive descriptor)
  *****************************************************************************/
-static inline int ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_FRS;
 }
 
-static inline int ftgmac100_rxdes_last_segment(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_last_segment(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_LRS;
 }
 
-static inline int ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RXPKT_RDY;
 }
 
-static inline void ftgmac100_rxdes_set_dma_own(struct ftgmac100_rxdes *rxdes)
+static void ftgmac100_rxdes_set_dma_own(struct ftgmac100_rxdes *rxdes)
 {
 	/* clear status bits */
 	rxdes->rxdes0 &= FTGMAC100_RXDES0_EDORR;
 }
 
-static inline int ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RX_ERR;
 }
 
-static inline int ftgmac100_rxdes_crc_error(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_crc_error(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_CRC_ERR;
 }
 
-static inline int ftgmac100_rxdes_frame_too_long(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_frame_too_long(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_FTL;
 }
 
-static inline int ftgmac100_rxdes_runt(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_runt(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RUNT;
 }
 
-static inline int ftgmac100_rxdes_odd_nibble(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_odd_nibble(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RX_ODD_NB;
 }
 
-static inline unsigned int ftgmac100_rxdes_frame_length(
-		struct ftgmac100_rxdes *rxdes)
+static unsigned int ftgmac100_rxdes_frame_length(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_VDBC;
 }
 
-static inline int ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_MULTICAST;
 }
 
-static inline void ftgmac100_rxdes_set_end_of_ring(
-		struct ftgmac100_rxdes *rxdes)
+static void ftgmac100_rxdes_set_end_of_ring(struct ftgmac100_rxdes *rxdes)
 {
 	rxdes->rxdes0 |= FTGMAC100_RXDES0_EDORR;
 }
 
-static inline void ftgmac100_rxdes_set_dma_addr(struct ftgmac100_rxdes *rxdes,
+static void ftgmac100_rxdes_set_dma_addr(struct ftgmac100_rxdes *rxdes,
 		dma_addr_t addr)
 {
 	rxdes->rxdes3 = addr;
 }
 
-static inline dma_addr_t ftgmac100_rxdes_get_dma_addr(
-		struct ftgmac100_rxdes *rxdes)
+static dma_addr_t ftgmac100_rxdes_get_dma_addr(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes3;
 }
 
 /* rxdes2 is not used by hardware, we use it to keep track of buffer */
-static inline void ftgmac100_rxdes_set_va(struct ftgmac100_rxdes *rxdes,
-		void *addr)
+static void ftgmac100_rxdes_set_va(struct ftgmac100_rxdes *rxdes, void *addr)
 {
 	rxdes->rxdes2 = (unsigned int)addr;
 }
 
-static inline void *ftgmac100_rxdes_get_va(struct ftgmac100_rxdes *rxdes)
+static void *ftgmac100_rxdes_get_va(struct ftgmac100_rxdes *rxdes)
 {
 	return (void *)rxdes->rxdes2;
 }
@@ -289,18 +283,17 @@ static inline void *ftgmac100_rxdes_get_va(struct ftgmac100_rxdes *rxdes)
 /******************************************************************************
  * internal functions (receive)
  *****************************************************************************/
-static inline int ftgmac100_next_rx_pointer(int pointer)
+static int ftgmac100_next_rx_pointer(int pointer)
 {
 	return (pointer + 1) & (RX_QUEUE_ENTRIES - 1);
 }
 
-static inline void ftgmac100_rx_pointer_advance(struct ftgmac100 *priv)
+static void ftgmac100_rx_pointer_advance(struct ftgmac100 *priv)
 {
 	priv->rx_pointer = ftgmac100_next_rx_pointer(priv->rx_pointer);
 }
 
-static inline struct ftgmac100_rxdes *ftgmac100_current_rxdes(
-		struct ftgmac100 *priv)
+static struct ftgmac100_rxdes *ftgmac100_current_rxdes(struct ftgmac100 *priv)
 {
 	return &priv->descs->rxdes[priv->rx_pointer];
 }
@@ -467,7 +460,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 /******************************************************************************
  * internal functions (transmit descriptor)
  *****************************************************************************/
-static inline void ftgmac100_txdes_reset(struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_reset(struct ftgmac100_txdes *txdes)
 {
 	/* clear all except end of ring bit */
 	txdes->txdes0 &= FTGMAC100_TXDES0_EDOTR;
@@ -476,66 +469,61 @@ static inline void ftgmac100_txdes_reset(struct ftgmac100_txdes *txdes)
 	txdes->txdes3 = 0;
 }
 
-static inline int ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
+static int ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
 {
 	return txdes->txdes0 & FTGMAC100_TXDES0_TXDMA_OWN;
 }
 
-static inline void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes0 |= FTGMAC100_TXDES0_TXDMA_OWN;
 }
 
-static inline void ftgmac100_txdes_set_end_of_ring(
-		struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_end_of_ring(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes0 |= FTGMAC100_TXDES0_EDOTR;
 }
 
-static inline void ftgmac100_txdes_set_first_segment(
-		struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_first_segment(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes0 |= FTGMAC100_TXDES0_FTS;
 }
 
-static inline void ftgmac100_txdes_set_last_segment(
-		struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_last_segment(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes0 |= FTGMAC100_TXDES0_LTS;
 }
 
-static inline void ftgmac100_txdes_set_txint(struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_txint(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes1 |= FTGMAC100_TXDES1_TXIC;
 }
 
-static inline void ftgmac100_txdes_set_buffer_size(
-		struct ftgmac100_txdes *txdes, unsigned int len)
+static void ftgmac100_txdes_set_buffer_size(struct ftgmac100_txdes *txdes,
+		unsigned int len)
 {
 	txdes->txdes0 |= FTGMAC100_TXDES0_TXBUF_SIZE(len);
 }
 
-static inline void ftgmac100_txdes_set_dma_addr(struct ftgmac100_txdes *txdes,
+static void ftgmac100_txdes_set_dma_addr(struct ftgmac100_txdes *txdes,
 		dma_addr_t addr)
 {
 	txdes->txdes3 = addr;
 }
 
-static inline dma_addr_t ftgmac100_txdes_get_dma_addr(
-		struct ftgmac100_txdes *txdes)
+static dma_addr_t ftgmac100_txdes_get_dma_addr(struct ftgmac100_txdes *txdes)
 {
 	return txdes->txdes3;
 }
 
 /* txdes2 is not used by hardware, we use it to keep track of socket buffer */
-static inline void ftgmac100_txdes_set_skb(struct ftgmac100_txdes *txdes,
+static void ftgmac100_txdes_set_skb(struct ftgmac100_txdes *txdes,
 		struct sk_buff *skb)
 {
 	txdes->txdes2 = (unsigned int)skb;
 }
 
-static inline struct sk_buff *ftgmac100_txdes_get_skb(
-		struct ftgmac100_txdes *txdes)
+static struct sk_buff *ftgmac100_txdes_get_skb(struct ftgmac100_txdes *txdes)
 {
 	return (struct sk_buff *)txdes->txdes2;
 }
@@ -543,29 +531,28 @@ static inline struct sk_buff *ftgmac100_txdes_get_skb(
 /******************************************************************************
  * internal functions (transmit)
  *****************************************************************************/
-static inline int ftgmac100_next_tx_pointer(int pointer)
+static int ftgmac100_next_tx_pointer(int pointer)
 {
 	return (pointer + 1) & (TX_QUEUE_ENTRIES - 1);
 }
 
-static inline void ftgmac100_tx_pointer_advance(struct ftgmac100 *priv)
+static void ftgmac100_tx_pointer_advance(struct ftgmac100 *priv)
 {
 	priv->tx_pointer = ftgmac100_next_tx_pointer(priv->tx_pointer);
 }
 
-static inline void ftgmac100_tx_clean_pointer_advance(struct ftgmac100 *priv)
+static void ftgmac100_tx_clean_pointer_advance(struct ftgmac100 *priv)
 {
 	priv->tx_clean_pointer =
 		ftgmac100_next_tx_pointer(priv->tx_clean_pointer);
 }
 
-static inline struct ftgmac100_txdes *ftgmac100_current_txdes(
-		struct ftgmac100 *priv)
+static struct ftgmac100_txdes *ftgmac100_current_txdes(struct ftgmac100 *priv)
 {
 	return &priv->descs->txdes[priv->tx_pointer];
 }
 
-static inline struct ftgmac100_txdes *ftgmac100_current_clean_txdes(
+static struct ftgmac100_txdes *ftgmac100_current_clean_txdes(
 		struct ftgmac100 *priv)
 {
 	return &priv->descs->txdes[priv->tx_clean_pointer];
