@@ -193,17 +193,17 @@ static void ftgmac100_stop_hw(struct ftgmac100 *priv)
 /******************************************************************************
  * internal functions (receive descriptor)
  *****************************************************************************/
-static int ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_FRS;
 }
 
-static int ftgmac100_rxdes_last_segment(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_last_segment(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_LRS;
 }
 
-static int ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RXPKT_RDY;
 }
@@ -214,27 +214,27 @@ static void ftgmac100_rxdes_set_dma_own(struct ftgmac100_rxdes *rxdes)
 	rxdes->rxdes0 &= FTGMAC100_RXDES0_EDORR;
 }
 
-static int ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RX_ERR;
 }
 
-static int ftgmac100_rxdes_crc_error(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_crc_error(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_CRC_ERR;
 }
 
-static int ftgmac100_rxdes_frame_too_long(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_frame_too_long(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_FTL;
 }
 
-static int ftgmac100_rxdes_runt(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_runt(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RUNT;
 }
 
-static int ftgmac100_rxdes_odd_nibble(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_odd_nibble(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_RX_ODD_NB;
 }
@@ -244,7 +244,7 @@ static unsigned int ftgmac100_rxdes_frame_length(struct ftgmac100_rxdes *rxdes)
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_VDBC;
 }
 
-static int ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
+static bool ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & FTGMAC100_RXDES0_MULTICAST;
 }
@@ -311,18 +311,18 @@ static struct ftgmac100_rxdes *ftgmac100_rx_locate_first_segment(
 	return NULL;
 }
 
-static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
+static bool ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		struct ftgmac100_rxdes *rxdes)
 {
 	struct net_device *netdev = priv->netdev;
-	int error = 0;
+	bool error = false;
 
 	if (unlikely(ftgmac100_rxdes_rx_error(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx err\n");
 
 		netdev->stats.rx_errors++;
-		error = 1;
+		error = true;
 	}
 
 	if (unlikely(ftgmac100_rxdes_crc_error(rxdes))) {
@@ -330,7 +330,7 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 			netdev_info(netdev, "rx crc err\n");
 
 		netdev->stats.rx_crc_errors++;
-		error = 1;
+		error = true;
 	}
 
 	if (unlikely(ftgmac100_rxdes_frame_too_long(rxdes))) {
@@ -338,19 +338,19 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 			netdev_info(netdev, "rx frame too long\n");
 
 		netdev->stats.rx_length_errors++;
-		error = 1;
+		error = true;
 	} else if (unlikely(ftgmac100_rxdes_runt(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx runt\n");
 
 		netdev->stats.rx_length_errors++;
-		error = 1;
+		error = true;
 	} else if (unlikely(ftgmac100_rxdes_odd_nibble(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx odd nibble\n");
 
 		netdev->stats.rx_length_errors++;
-		error = 1;
+		error = true;
 	}
 
 	return error;
@@ -360,14 +360,14 @@ static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
-	int done = 0;
+	bool done = false;
 
 	if (net_ratelimit())
 		netdev_dbg(netdev, "drop packet %p\n", rxdes);
 
 	do {
 		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = 1;
+			done = true;
 
 		ftgmac100_rxdes_set_dma_own(rxdes);
 		ftgmac100_rx_pointer_advance(priv);
@@ -377,22 +377,22 @@ static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
 	netdev->stats.rx_dropped++;
 }
 
-static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
+static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
 	int length;
 	int copied = 0;
-	int done = 0;
+	bool done = false;
 
 	rxdes = ftgmac100_rx_locate_first_segment(priv);
 	if (!rxdes)
-		return 0;
+		return false;
 
 	if (unlikely(ftgmac100_rx_packet_error(priv, rxdes))) {
 		ftgmac100_rx_drop_packet(priv);
-		return 1;
+		return true;
 	}
 
 	/* start processing */
@@ -404,7 +404,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 			netdev_err(netdev, "rx skb alloc failed\n");
 
 		ftgmac100_rx_drop_packet(priv);
-		return 1;
+		return true;
 	}
 
 	if (unlikely(ftgmac100_rxdes_multicast(rxdes)))
@@ -424,7 +424,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		copied += size;
 
 		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = 1;
+			done = true;
 
 		dma_sync_single_for_device(priv->dev, map, RX_BUF_SIZE,
 			DMA_FROM_DEVICE);
@@ -446,7 +446,7 @@ static int ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	(*processed)++;
 
-	return 1;
+	return true;
 }
 
 /******************************************************************************
@@ -461,7 +461,7 @@ static void ftgmac100_txdes_reset(struct ftgmac100_txdes *txdes)
 	txdes->txdes3 = 0;
 }
 
-static int ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
+static bool ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
 {
 	return txdes->txdes0 & FTGMAC100_TXDES0_TXDMA_OWN;
 }
@@ -555,7 +555,7 @@ static struct ftgmac100_txdes *ftgmac100_current_clean_txdes(
 	return &priv->descs->txdes[priv->tx_clean_pointer];
 }
 
-static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
+static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_txdes *txdes;
@@ -563,12 +563,12 @@ static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	dma_addr_t map;
 
 	if (priv->tx_pending == 0)
-		return 0;
+		return false;
 
 	txdes = ftgmac100_current_clean_txdes(priv);
 
 	if (ftgmac100_txdes_owned_by_dma(txdes))
-		return 0;
+		return false;
 
 	skb = ftgmac100_txdes_get_skb(txdes);
 	map = ftgmac100_txdes_get_dma_addr(txdes);
@@ -587,7 +587,7 @@ static int ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	priv->tx_pending--;
 	netif_wake_queue(netdev);
 
-	return 1;
+	return true;
 }
 
 static void ftgmac100_tx_complete(struct ftgmac100 *priv)
@@ -938,7 +938,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
 	struct net_device *netdev = priv->netdev;
 	unsigned int status;
-	int completed = 1;
+	bool completed = true;
 	int rx = 0;
 
 	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
@@ -952,14 +952,14 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		 * FTGMAC100_INT_NO_RXBUF:
 		 *	RX buffer unavailable
 		 */
-		int retry;
+		bool retry;
 
 		do {
 			retry = ftgmac100_rx_packet(priv, &rx);
 		} while (retry && rx < budget);
 
 		if (retry && rx == budget)
-			completed = 0;
+			completed = false;
 	}
 
 	if (status & FTGMAC100_INT_NO_RXBUF) {
