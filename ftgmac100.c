@@ -155,16 +155,18 @@ static void ftgmac100_init_hw(struct ftgmac100 *priv)
 	ftgmac100_set_mac(priv, priv->netdev->dev_addr);
 }
 
+#define MACCR_ENABLE_ALL	(FTGMAC100_MACCR_TXDMA_EN	| \
+				 FTGMAC100_MACCR_RXDMA_EN	| \
+				 FTGMAC100_MACCR_TXMAC_EN	| \
+				 FTGMAC100_MACCR_RXMAC_EN	| \
+				 FTGMAC100_MACCR_FULLDUP	| \
+				 FTGMAC100_MACCR_CRC_APD	| \
+				 FTGMAC100_MACCR_RX_RUNT	| \
+				 FTGMAC100_MACCR_RX_BROADPKT)
+
 static void ftgmac100_start_hw(struct ftgmac100 *priv, int speed)
 {
-	int maccr = FTGMAC100_MACCR_TXDMA_EN
-		  | FTGMAC100_MACCR_RXDMA_EN
-		  | FTGMAC100_MACCR_TXMAC_EN
-		  | FTGMAC100_MACCR_RXMAC_EN
-		  | FTGMAC100_MACCR_FULLDUP
-		  | FTGMAC100_MACCR_CRC_APD
-		  | FTGMAC100_MACCR_RX_RUNT
-		  | FTGMAC100_MACCR_RX_BROADPKT;
+	int maccr = MACCR_ENABLE_ALL;
 
 	switch (speed) {
 	default:
