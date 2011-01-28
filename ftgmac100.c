@@ -476,6 +476,11 @@ static int ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
 
 static void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
 {
+	/*
+	 * Make sure dma own bit will not be set before any other
+	 * descriptor fields.
+	 */
+	wmb();
 	txdes->txdes0 |= FTGMAC100_TXDES0_TXDMA_OWN;
 }
 
@@ -634,8 +639,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	}
 
 	/* start transmit */
-
-	wmb();
 	ftgmac100_txdes_set_dma_own(txdes);
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
