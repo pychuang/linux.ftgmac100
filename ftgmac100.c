@@ -339,17 +339,13 @@ static int ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 
 		netdev->stats.rx_length_errors++;
 		error = 1;
-	}
-
-	if (unlikely(ftgmac100_rxdes_runt(rxdes))) {
+	} else if (unlikely(ftgmac100_rxdes_runt(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx runt\n");
 
 		netdev->stats.rx_length_errors++;
 		error = 1;
-	}
-
-	if (unlikely(ftgmac100_rxdes_odd_nibble(rxdes))) {
+	} else if (unlikely(ftgmac100_rxdes_odd_nibble(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx odd nibble\n");
 
