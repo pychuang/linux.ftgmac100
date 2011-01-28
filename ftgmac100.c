@@ -683,8 +683,7 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 
 	priv->descs = dma_alloc_coherent(priv->dev,
 					 sizeof(struct ftgmac100_descs),
-					 &priv->descs_dma_addr,
-					 GFP_KERNEL | GFP_DMA);
+					 &priv->descs_dma_addr, GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
 
@@ -698,7 +697,7 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 		void *page;
 		dma_addr_t map;
 
-		page = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+		page = (void *)__get_free_page(GFP_KERNEL);
 		if (!page)
 			goto err;
 
