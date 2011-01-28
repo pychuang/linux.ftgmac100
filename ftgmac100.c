@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -1300,7 +1302,7 @@ static struct platform_driver ftgmac100_driver = {
  *****************************************************************************/
 static int __init ftgmac100_init(void)
 {
-	printk(KERN_INFO "Loading " DRV_NAME ": version " DRV_VERSION " ...\n");
+	pr_info("Loading version " DRV_VERSION " ...\n");
 	return platform_driver_register(&ftgmac100_driver);
 }
 
