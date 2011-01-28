@@ -117,7 +117,7 @@ static int ftgmac100_reset_hw(struct ftgmac100 *priv)
 	/* NOTE: reset clears all registers */
 	iowrite32(FTGMAC100_MACCR_SW_RST, priv->base + FTGMAC100_OFFSET_MACCR);
 	for (i = 0; i < 5; i++) {
-		int maccr;
+		unsigned int maccr;
 
 		maccr = ioread32(priv->base + FTGMAC100_OFFSET_MACCR);
 		if (!(maccr & FTGMAC100_MACCR_SW_RST))
@@ -807,7 +807,7 @@ static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
 	struct net_device *netdev = bus->priv;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	int phycr;
+	unsigned int phycr;
 	int i;
 
 	phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
@@ -843,7 +843,7 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 {
 	struct net_device *netdev = bus->priv;
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	int phycr;
+	unsigned int phycr;
 	int data;
 	int i;
 
