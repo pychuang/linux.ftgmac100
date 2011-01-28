@@ -582,7 +582,7 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 
 	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
 
-	dev_kfree_skb_irq(skb);
+	dev_kfree_skb(skb);
 
 	ftgmac100_txdes_reset(txdes);
 
