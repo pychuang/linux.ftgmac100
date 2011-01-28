@@ -127,7 +127,7 @@ static int ftgmac100_reset_hw(struct ftgmac100 *priv)
 		if (!(maccr & FTGMAC100_MACCR_SW_RST))
 			return 0;
 
-		msleep(10);
+		udelay(1000);
 	}
 
 	netdev_err(netdev, "software reset failed\n");
@@ -893,7 +893,7 @@ static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 			return FTGMAC100_PHYDATA_MIIRDATA(data);
 		}
 
-		msleep(1);
+		udelay(100);
 	}
 
 	netdev_err(netdev, "mdio read timed out\n");
@@ -929,7 +929,7 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 		if ((phycr & FTGMAC100_PHYCR_MIIWR) == 0)
 			return 0;
 
-		msleep(1);
+		udelay(100);
 	}
 
 	netdev_err(netdev, "mdio write timed out\n");
