@@ -30,11 +30,12 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <net/ip.h>
 
 #include "ftgmac100.h"
 
 #define DRV_NAME	"ftgmac100"
-#define DRV_VERSION	"0.3"
+#define DRV_VERSION	"0.4"
 
 #define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
@@ -493,15 +494,30 @@ static void ftgmac100_txdes_set_last_segment(struct ftgmac100_txdes *txdes)
 	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_LTS);
 }
 
+static void ftgmac100_txdes_set_buffer_size(struct ftgmac100_txdes *txdes,
+					    unsigned int len)
+{
+	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXBUF_SIZE(len));
+}
+
 static void ftgmac100_txdes_set_txint(struct ftgmac100_txdes *txdes)
 {
 	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_TXIC);
 }
 
-static void ftgmac100_txdes_set_buffer_size(struct ftgmac100_txdes *txdes,
-					    unsigned int len)
+static void ftgmac100_txdes_set_tcpcs(struct ftgmac100_txdes *txdes)
 {
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXBUF_SIZE(len));
+	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_TCP_CHKSUM);
+}
+
+static void ftgmac100_txdes_set_udpcs(struct ftgmac100_txdes *txdes)
+{
+	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_UDP_CHKSUM);
+}
+
+static void ftgmac100_txdes_set_ipcs(struct ftgmac100_txdes *txdes)
+{
+	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_IP_CHKSUM);
 }
 
 static void ftgmac100_txdes_set_dma_addr(struct ftgmac100_txdes *txdes,
@@ -615,11 +631,24 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	/* setup TX descriptor */
 	ftgmac100_txdes_set_skb(txdes, skb);
 	ftgmac100_txdes_set_dma_addr(txdes, map);
+	ftgmac100_txdes_set_buffer_size(txdes, len);
 
 	ftgmac100_txdes_set_first_segment(txdes);
 	ftgmac100_txdes_set_last_segment(txdes);
 	ftgmac100_txdes_set_txint(txdes);
-	ftgmac100_txdes_set_buffer_size(txdes, len);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		__be16 protocol = skb->protocol;
+
+		if (protocol == cpu_to_be16(ETH_P_IP)) {
+			u8 ip_proto = ip_hdr(skb)->protocol;
+
+			ftgmac100_txdes_set_ipcs(txdes);
+			if (ip_proto == IPPROTO_TCP)
+				ftgmac100_txdes_set_tcpcs(txdes);
+			else if (ip_proto == IPPROTO_UDP)
+				ftgmac100_txdes_set_udpcs(txdes);
+		}
+	}
 
 	spin_lock(&priv->tx_lock);
 	priv->tx_pending++;
@@ -1144,6 +1173,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	SET_ETHTOOL_OPS(netdev, &ftgmac100_ethtool_ops);
 	netdev->netdev_ops = &ftgmac100_netdev_ops;
+	netdev->features = NETIF_F_IP_CSUM;
 
 	platform_set_drvdata(pdev, netdev);
 
