@@ -623,12 +623,8 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	ftgmac100_txdes_set_buffer_size(txdes, len);
 
 	priv->tx_pending++;
-	if (priv->tx_pending == TX_QUEUE_ENTRIES) {
-		if (net_ratelimit())
-			netdev_info(netdev, "tx queue full\n");
-
+	if (priv->tx_pending == TX_QUEUE_ENTRIES)
 		netif_stop_queue(netdev);
-	}
 
 	/* start transmit */
 	ftgmac100_txdes_set_dma_own(txdes);
