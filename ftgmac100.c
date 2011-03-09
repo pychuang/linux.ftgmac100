@@ -35,7 +35,7 @@
 #include "ftgmac100.h"
 
 #define DRV_NAME	"ftgmac100"
-#define DRV_VERSION	"0.4"
+#define DRV_VERSION	"0.5"
 
 #define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
@@ -267,6 +267,33 @@ static dma_addr_t ftgmac100_rxdes_get_dma_addr(struct ftgmac100_rxdes *rxdes)
 	return le32_to_cpu(rxdes->rxdes3);
 }
 
+static bool ftgmac100_rxdes_is_tcp(struct ftgmac100_rxdes *rxdes)
+{
+	return (rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_PROT_MASK)) ==
+	       cpu_to_le32(FTGMAC100_RXDES1_PROT_TCPIP);
+}
+
+static bool ftgmac100_rxdes_is_udp(struct ftgmac100_rxdes *rxdes)
+{
+	return (rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_PROT_MASK)) ==
+	       cpu_to_le32(FTGMAC100_RXDES1_PROT_UDPIP);
+}
+
+static bool ftgmac100_rxdes_tcpcs_err(struct ftgmac100_rxdes *rxdes)
+{
+	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_TCP_CHKSUM_ERR);
+}
+
+static bool ftgmac100_rxdes_udpcs_err(struct ftgmac100_rxdes *rxdes)
+{
+	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_UDP_CHKSUM_ERR);
+}
+
+static bool ftgmac100_rxdes_ipcs_err(struct ftgmac100_rxdes *rxdes)
+{
+	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_IP_CHKSUM_ERR);
+}
+
 /*
  * rxdes2 is not used by hardware. We use it to keep track of buffer.
  * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
@@ -335,6 +362,11 @@ static bool ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 			netdev_info(netdev, "rx crc err\n");
 
 		netdev->stats.rx_crc_errors++;
+		error = true;
+	} else if (unlikely(ftgmac100_rxdes_ipcs_err(rxdes))) {
+		if (net_ratelimit())
+			netdev_info(netdev, "rx IP checksum err\n");
+
 		error = true;
 	}
 
@@ -414,6 +446,15 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	if (unlikely(ftgmac100_rxdes_multicast(rxdes)))
 		netdev->stats.multicast++;
+
+	/*
+	 * It seems that HW does checksum incorrectly with fragmented packets,
+	 * so we are conservative here - if HW checksum error, let software do
+	 * the checksum again.
+	 */
+	if ((ftgmac100_rxdes_is_tcp(rxdes) && !ftgmac100_rxdes_tcpcs_err(rxdes)) ||
+	    (ftgmac100_rxdes_is_udp(rxdes) && !ftgmac100_rxdes_udpcs_err(rxdes)))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	do {
 		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
