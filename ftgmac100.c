@@ -77,7 +77,7 @@ struct ftgmac100 {
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes);
+				   struct ftgmac100_rxdes *rxdes, gfp_t gfp);
 
 /******************************************************************************
  * internal functions (hardware register access)
@@ -472,7 +472,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		if (ftgmac100_rxdes_last_segment(rxdes))
 			done = true;
 
-		ftgmac100_alloc_rx_page(priv, rxdes);
+		ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
 
 		ftgmac100_rx_pointer_advance(priv);
 		rxdes = ftgmac100_current_rxdes(priv);
@@ -707,13 +707,13 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
  * internal functions (buffer)
  *****************************************************************************/
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes)
+				   struct ftgmac100_rxdes *rxdes, gfp_t gfp)
 {
 	struct net_device *netdev = priv->netdev;
 	struct page *page;
 	dma_addr_t map;
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(gfp);
 	if (!page) {
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to allocate rx page\n");
@@ -784,7 +784,7 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
 
-		if (ftgmac100_alloc_rx_page(priv, rxdes))
+		if (ftgmac100_alloc_rx_page(priv, rxdes, GFP_KERNEL))
 			goto err;
 	}
 
