@@ -35,7 +35,7 @@
 #include "ftgmac100.h"
 
 #define DRV_NAME	"ftgmac100"
-#define DRV_VERSION	"0.6"
+#define DRV_VERSION	"0.7"
 
 #define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
@@ -485,7 +485,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	netdev->stats.rx_bytes += skb->len;
 
 	/* push packet to protocol stack */
-	netif_receive_skb(skb);
+	napi_gro_receive(&priv->napi, skb);
 
 	(*processed)++;
 	return true;
@@ -1214,7 +1214,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	SET_ETHTOOL_OPS(netdev, &ftgmac100_ethtool_ops);
 	netdev->netdev_ops = &ftgmac100_netdev_ops;
-	netdev->features = NETIF_F_IP_CSUM;
+	netdev->features = NETIF_F_IP_CSUM | NETIF_F_GRO;
 
 	platform_set_drvdata(pdev, netdev);
 
