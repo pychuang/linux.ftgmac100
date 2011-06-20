@@ -883,7 +883,7 @@ static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 100; i++) {
 		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
 
 		if ((phycr & FTGMAC100_PHYCR_MIIRD) == 0) {
@@ -923,7 +923,7 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	iowrite32(data, priv->base + FTGMAC100_OFFSET_PHYDATA);
 	iowrite32(phycr, priv->base + FTGMAC100_OFFSET_PHYCR);
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 100; i++) {
 		phycr = ioread32(priv->base + FTGMAC100_OFFSET_PHYCR);
 
 		if ((phycr & FTGMAC100_PHYCR_MIIWR) == 0)
